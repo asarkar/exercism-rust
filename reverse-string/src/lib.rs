@@ -1,3 +1,5 @@
+extern crate unicode_segmentation;
+
 use unicode_segmentation::UnicodeSegmentation;
 
 // We make two passes over the string's contents:
