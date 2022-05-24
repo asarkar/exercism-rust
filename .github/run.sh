@@ -2,42 +2,64 @@
 
 set -e
 
-test=${fix:-y}
-lint=${fix:-y}
-fix=${fix:-y}
-dir=${dir:-}
+export RUST_BACKTRACE=1
+export RUSTFLAGS="-D warnings"
 
-# Read the arguments
-while [ $# -gt 0 ]; do
-   if [[ $1 == *"--"* ]]; then
-        param="${1/--/}"
-        declare $param="$2"
-   fi
+no_test=0
+no_lint=0
+no_fix=0
 
-  shift
+while (( $# > 0 )); do
+   case "$1" in
+   	--help)
+			printf "run.sh [OPTION]... [DIR]\n"
+			printf "options:\n"
+			printf "\t--help			Show help\n"
+			printf "\t--no-test		Skip tests\n"
+			printf "\t--no-lint		Skip linting\n"
+			printf "\t--no-fix		Do not apply linter suggestions\n"
+			exit 0
+      	;;
+      --no-test)
+			no_test=1
+			shift
+      	;;
+      --no-lint)
+			no_lint=1
+			shift
+			;;
+		--no-fix)
+			no_fix=1
+			shift
+			;;
+		*)
+			break
+	      ;;
+   esac
 done
 
-# Find manifests
-if [ -z "$dir" ]; then
+
+manifests=()
+if [[ -z "$1" ]]; then
 	manifests=(**/Cargo.toml)
 else
-	manifests=("$dir/Cargo.toml")
+	manifests+=("$1/Cargo.toml")
 fi
 
 green='\033[1;32m'
 no_color='\033[0m'
 for m in "${manifests[@]}"; do
-	name="$(dirname $(readlink -f $m))"
-	name="$(basename $name)"
+	name="$(dirname "$(readlink -f "$m")")"
+	name="$(basename "$name")"
 
-	printf "Project dir: ${green}$name${no_color}\n"
+	printf "Project dir: %b%s%b\n" "$green" "$name" "$no_color"
 
-	if [ "$test" == "y" ]; then
-		cargo test --all-features --manifest-path $m -- --ignored
+	if (( no_test == 0 )); then
+		cargo test --all-features --manifest-path "$m" -- --ignored --nocapture
 	fi
 
-	if [ "$lint" == "y" ]; then
-		if [ "$fix" == "y" ]; then
+	if (( no_lint == 0 )); then
+		if (( no_fix == 0 )); then
 			cargo fmt --manifest-path "$m" -- -l
 			cargo clippy --manifest-path "$m" --fix --allow-dirty --allow-staged --no-deps
 		else

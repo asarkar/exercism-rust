@@ -5,9 +5,6 @@ name: CI
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    env:
-      RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v3
 
@@ -18,7 +15,7 @@ jobs:
           components: clippy
 
       - name: Test
-        run: .github/run.sh --lint n
+        run: .github/run.sh --no-lint
 
       - name: Lint
-        run: .github/run.sh --test n --fix n
+        run: .github/run.sh --no-test --no-fix
