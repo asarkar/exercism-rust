@@ -18,19 +18,7 @@ jobs:
           components: clippy
 
       - name: Test
-        run: |
-          shopt -s globstar
-          for toml in **/Cargo.toml; do
-            cargo test --all-features --manifest-path $toml -- --ignored
-          done
-      
+        run: .github/run.sh --lint n
+
       - name: Lint
-        run: |
-          shopt -s globstar
-          for toml in **/Cargo.toml; do
-            # https://linuxcommandlibrary.com/man/rustfmt
-            # https://github.com/rust-lang/rustfmt
-            cargo fmt --manifest-path $toml -- --check
-            # https://github.com/rust-lang/rust-clippy
-            cargo clippy --manifest-path $toml -- -D warnings 
-          done 
+        run: .github/run.sh --test n --fix n
