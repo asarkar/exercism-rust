@@ -55,7 +55,7 @@ for m in "${manifests[@]}"; do
 	printf "Project dir: %b%s%b\n" "$green" "$name" "$no_color"
 
 	if (( no_test == 0 )); then
-		cargo test --all-features --manifest-path "$m" -- --ignored --nocapture
+		cargo test --all-features --manifest-path "$m" -- --ignored --show-output
 	fi
 
 	if (( no_lint == 0 )); then
