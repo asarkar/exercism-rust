@@ -18,9 +18,11 @@ pub fn sublist<T: PartialEq>(first_list: &[T], second_list: &[T]) -> Comparison 
 }
 
 /*
-We use the KMP algorithm. First, we build an array 'lps', where lps[i] contains the
-length of the longest proper prefix that matches the proper suffix of the same length
-in an array ending at smaller[i].
+The naive approach of comparing the 'smaller' array against every index of 'bigger'
+takes O(mn) time. Instead, we use the KMP algorithm.
+First, we build an array 'lps', where lps[i] contains the length of the longest
+proper prefix that matches the proper suffix of the same length in an array ending
+at smaller[i].
 
 For example:
 smaller = [1, 1, 2, 1, 1, 2, 1, 1, 1]
