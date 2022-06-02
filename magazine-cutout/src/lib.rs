@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+// LeetCode 383: Ransom Note.
 pub fn can_construct_note(magazine: &[&str], note: &[&str]) -> bool {
     let mut mag_word_freq: HashMap<&str, u32> = HashMap::new();
     for w in magazine {
