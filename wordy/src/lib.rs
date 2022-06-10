@@ -22,14 +22,6 @@ pub fn answer(command: &str) -> Option<i32> {
 
     for mat in number_re.find_iter(command) {
         if let Some(prev_mat) = prev_match {
-            if prev_mat.end() == mat.start() {
-                eprintln!(
-                    "Missing operation between {} and {}",
-                    prev_mat.as_str(),
-                    mat.as_str()
-                );
-                return None;
-            }
             let phrase = (&command[prev_mat.end()..mat.start()]).trim();
             if let Some(op) = phrases.get(phrase) {
                 let num = mat.as_str().parse::<i32>().unwrap();
@@ -53,8 +45,7 @@ pub fn answer(command: &str) -> Option<i32> {
             return None;
         }
     } else {
-        // No numbers found
-        eprintln!("Invalid command: {}", command);
+        eprintln!("No numbers found: {}", command);
         return None;
     }
 
