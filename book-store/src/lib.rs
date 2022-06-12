@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use std::cmp;
-use std::collections::{hash_map::HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 const DISCOUNTS: [u32; 6] = [0, 0, 40, 80, 160, 200];
 const COST_OF_ONE: u32 = 800;
 

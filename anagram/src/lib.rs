@@ -1,4 +1,4 @@
-use std::collections::{hash_map::HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 // There are two obvious approaches:
 // 1. Sort and compare: For a list of 'm' candidates where all of them are anagrams
