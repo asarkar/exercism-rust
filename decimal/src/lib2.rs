@@ -1,10 +1,10 @@
 use num_bigint::{BigInt, Sign};
 use num_integer::Integer;
-use num_traits::Zero;
-use std::cmp::{Ordering, PartialOrd};
+use num_traits::One;
+use std::cmp::Ordering;
+use std::cmp::PartialOrd;
 use std::fmt;
 use std::ops::{Add, Mul, Neg, Sub};
-use std::str::FromStr;
 
 /// Type implementing arbitrary-precision decimal arithmetic
 // https://jrsinclair.com/articles/2020/sick-of-the-jokes-write-your-own-arbitrary-precision-javascript-math-library/
@@ -12,35 +12,46 @@ use std::str::FromStr;
 #[derive(PartialEq)]
 pub struct Decimal {
     numerator: BigInt,
-    denominator: usize,
+    denominator: BigInt,
 }
 
 impl fmt::Debug for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}/10^{}",
-            self.numerator.to_str_radix(10),
-            self.denominator
-        )
+        if self.denominator != One::one() {
+            write!(
+                f,
+                "{}/{}",
+                self.numerator.to_str_radix(10),
+                self.denominator.to_str_radix(10)
+            )
+        } else {
+            write!(f, "{}", self.numerator.to_str_radix(10))
+        }
     }
 }
 
 impl PartialOrd for Decimal {
+    fn lt(&self, other: &Decimal) -> bool {
+        Decimal::mul(self, other, true, false) < Decimal::mul(self, other, false, true)
+    }
+    fn le(&self, other: &Decimal) -> bool {
+        self <= other
+    }
+    fn gt(&self, other: &Decimal) -> bool {
+        !self.lt(other) && self != other
+    }
+    fn ge(&self, other: &Decimal) -> bool {
+        self >= other
+    }
     fn partial_cmp(&self, other: &Decimal) -> Option<Ordering> {
-        // Using a u64::pow(10, ?) here may overflow
-        let x = format!("1{}", "0".repeat(other.denominator));
-        let y = format!("1{}", "0".repeat(self.denominator));
-
-        BigInt::from_str(&x)
-            .ok()
-            .and_then(|i| self.numerator.checked_mul(&i))
-            .zip(
-                BigInt::from_str(&y)
-                    .ok()
-                    .and_then(|j| other.numerator.checked_mul(&j)),
-            )
-            .map(|(i, j)| i.cmp(&j))
+        let ord = if self < other {
+            Ordering::Less
+        } else if self > other {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        };
+        Some(ord)
     }
 }
 
@@ -59,18 +70,11 @@ impl Add for Decimal {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let (larger, smaller) = if self.denominator > other.denominator {
-            (self, other)
-        } else {
-            (other, self)
-        };
-        let factor = larger.denominator - smaller.denominator;
-        let x = format!("1{}", "0".repeat(factor));
-
         Decimal::simplify(
-            // Using a u64::pow(10, factor) here may overflow
-            smaller.numerator * BigInt::from_str(&x).unwrap() + larger.numerator,
-            larger.denominator,
+            Decimal::mul(&self, &other, true, false)
+                .checked_add(&Decimal::mul(&self, &other, false, true))
+                .unwrap(),
+            Decimal::mul(&self, &other, false, false),
         )
     }
 }
@@ -88,18 +92,19 @@ impl Mul for Decimal {
 
     fn mul(self, other: Self) -> Self {
         Decimal::simplify(
-            self.numerator * other.numerator,
-            self.denominator + other.denominator,
+            Decimal::mul(&self, &other, true, true),
+            Decimal::mul(&self, &other, false, false),
         )
     }
 }
 
 impl Decimal {
     // We convert the ratio to a fraction, where the numerator
-    // is the input string without the decimal and leading zeros,
-    // and the denominator is the power of 10.
-    // The sign is stored with the numerator.
-    // Example: 0.2 is parsed into 2/1.
+    // is the input string without the decimal, and the
+    // denominator is some power of 10. The sign is
+    // stored with the numerator.
+    // Example: 0.2 is parsed into 2/10, which is further
+    // simplified to 1/5.
     pub fn try_from(input: &str) -> Option<Decimal> {
         let (num, pos, negative) = Decimal::parse_input(input);
 
@@ -108,9 +113,11 @@ impl Decimal {
         }
         let sign = if negative { Sign::Minus } else { Sign::Plus };
         let denom = if pos >= 0 {
-            input.len() - (pos as usize)
+            BigInt::from_radix_be(Sign::Plus, &[1_u8, 0_u8], 10)
+                .unwrap()
+                .pow((input.len() as u32) - (pos as u32))
         } else {
-            0_usize
+            One::one()
         };
         Some(Decimal::simplify(
             BigInt::from_radix_be(sign, &num, 10).unwrap(),
@@ -141,22 +148,31 @@ impl Decimal {
         (num, pos, negative)
     }
 
-    // Reduce the fraction to its lowest terms by dividing
-    // repeatedly by ten.
-    fn simplify(n: BigInt, d: usize) -> Decimal {
-        let mut x = n;
-        let mut y = d;
-        let ten = BigInt::from_str("10").unwrap();
-
-        while y > 0 && x.mod_floor(&ten) == Zero::zero() {
-            x /= 10;
-            y -= 1;
-        }
+    // Reduce the fraction to its lowest terms by dividing the
+    // numerator and denominator by the GCD.
+    fn simplify(n: BigInt, d: BigInt) -> Decimal {
+        let g = BigInt::from_biguint(Sign::Plus, n.magnitude().gcd(d.magnitude()));
 
         Decimal {
-            numerator: x,
-            denominator: y,
+            numerator: n.checked_div(&g).unwrap(),
+            denominator: d.checked_div(&g).unwrap(),
         }
+    }
+
+    // Multiply a combination of numerator and denominator from
+    // two Decimals. n1 and n2 indicate numerators.
+    fn mul(&self, other: &Decimal, n1: bool, n2: bool) -> BigInt {
+        let (x, y) = if n1 && n2 {
+            (&self.numerator, &other.numerator)
+        } else if n1 && !n2 {
+            (&self.numerator, &other.denominator)
+        } else if !n1 && n2 {
+            (&self.denominator, &other.numerator)
+        } else {
+            (&self.denominator, &other.denominator)
+        };
+        x.checked_mul(y)
+            .unwrap_or_else(|| panic!("Couldn't multiply {} with {}", x, y))
     }
 }
 
@@ -165,46 +181,42 @@ mod tests {
     use super::*;
 
     fn helper(s: &str, n: Option<u32>, d: Option<u32>) -> (String, String) {
-        let expected = if let Some(n) = n {
+        let expected = if n.is_some() {
             let sign = if s.starts_with('-') { "-" } else { "" };
-            let mut x = format!("{}{}", sign, n);
-            if let Some(d) = d {
-                x.push_str(&format!("/10^{}", d));
+            if d.is_some() {
+                format!("{}{}/{}", sign, n.unwrap(), d.unwrap())
+            } else {
+                format!("{}{}", sign, n.unwrap())
             }
-            x
         } else {
             "".to_string()
         };
         let decimal = Decimal::try_from(s);
-        let actual = decimal.map(|d| format!("{:?}", d)).unwrap_or_default();
+        let actual = decimal
+            .map(|d| format!("{:?}", d))
+            .unwrap_or_else(|| "".to_string());
         (expected, actual)
     }
 
     #[test]
     fn test_parse_positive() {
         for (s, n, d) in [
-            ("0.011", Some(11), Some(3)),
-            ("1", Some(1), Some(0)),
-            (".2", Some(2), Some(1)),
-            ("+2", Some(2), Some(0)),
-            ("+0.2", Some(2), Some(1)),
-            ("1.0", Some(1), Some(0)),
-            ("0.0", Some(0), Some(0)),
+            ("0.011", Some(11), Some(1000)),
+            ("1", Some(1), None),
+            (".2", Some(1), Some(5)),
+            ("+2", Some(2), None),
+            ("+0.2", Some(1), Some(5)),
         ] {
             let (expected, actual) = helper(s, n, d);
-            assert_eq!(expected, actual, "Parsing of {} failed", s);
+            assert_eq!(expected, actual);
         }
     }
 
     #[test]
     fn test_parse_negative() {
-        for (s, n, d) in [
-            ("-0.1", Some(1), Some(1)),
-            ("-10", Some(10), Some(0)),
-            ("-1.99", Some(199), Some(2)),
-        ] {
+        for (s, n, d) in [("-0.1", Some(1), Some(10)), ("-10", Some(10), None)] {
             let (expected, actual) = helper(s, n, d);
-            assert_eq!(expected, actual, "Parsing of {} failed", s);
+            assert_eq!(expected, actual);
         }
     }
 
@@ -216,7 +228,7 @@ mod tests {
             ("1a2", None, None),
         ] {
             let (expected, actual) = helper(s, n, d);
-            assert_eq!(expected, actual, "Parsing of {} failed", s);
+            assert_eq!(expected, actual);
         }
     }
 }

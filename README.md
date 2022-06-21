@@ -14,3 +14,7 @@ To run a test `test_bits` in file `src/bitset.rs`, under module `tests`, use the
 
 To run a test `test_bits` in file `src/lib.rs`, under module `tests`, use the path 
 `tests::test_bits`.
+
+## References
+
+* https://www.philipdaniels.com/tags/rust/
