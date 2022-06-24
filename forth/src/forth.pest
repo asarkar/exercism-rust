@@ -1,0 +1,30 @@
+// https://docs.rs/pest_derive/latest/pest_derive/
+// https://pest.rs/book/intro.html
+// https://skilldrick.github.io/easyforth/
+Int = @{ ASCII_DIGIT+ }
+Add = { "+" }
+Sub = { "-" }
+Mul = { "*" }
+Div = { "/" }
+BinOp = { Add | Sub | Mul | Div }
+Dup = { ^"DUP" }
+Drop = { ^"DROP" }
+Swap = { ^"SWAP" }
+Over = { ^"OVER" }
+StackOp = { Dup | Drop | Swap | Over }
+Rhs = _{ Int ~ BinOp }
+BinExpr = _{ Int ~ Rhs }
+CompoundExpr = _{ BinExpr ~ Rhs* }
+Cmd = _{ Int | BinOp | StackOp | CompoundExpr }
+COLON = _{ ":" }
+SEMICOLON = { ";" }
+WHITESPACE = _{ " " }
+HyphenatedWord = _{ ASCII_ALPHA+ ~ Sub ~ ASCII_ALPHA+ }
+Word = @{ HyphenatedWord | BinOp | ASCII_ALPHA+ }
+Defn = { (Rhs | Cmd)+ }
+WordDefn = { COLON ~ Word+ ~ Defn? ~ SEMICOLON }
+InvalidWord = { COLON ~ ANY* }
+// WordRef = { COLON ~ Word{2,} ~ SEMICOLON }
+// WordDefnOverride = { COLON ~ Word{2,} ~ Defn ~ SEMICOLON }
+
+Line = _{ SOI ~ (Word | WordDefn | Cmd | InvalidWord)+ ~ EOI }

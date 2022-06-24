@@ -1,0 +1,8 @@
+[package]
+edition = "2021"
+name = "forth"
+version = "1.7.0"
+
+[dependencies]
+pest = "2.1"
+pest_derive = "2.1"

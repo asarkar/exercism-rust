@@ -34,7 +34,7 @@ impl Queen {
     }
 
     /*
-     * Checking for row and column attacks are easy. Diagonal attacks are little tricky.
+     * Checking for row and column attacks is easy. Diagonal attacks are little tricky.
      * To know if the current (row, column) falls in a diagonal under attack we note
      * that the coordinates of a cell under attack diagonally from a queen has a symmetry:
      * the difference between the current row and the row of the queen is equal to the
@@ -47,8 +47,11 @@ impl Queen {
     pub fn can_attack(&self, other: &Queen) -> bool {
         self.pos.rank == other.pos.rank
             || self.pos.file == other.pos.file
-            || (cmp::max(self.pos.rank, other.pos.rank) - cmp::min(self.pos.rank, other.pos.rank))
-                == (cmp::max(self.pos.file, other.pos.file)
-                    - cmp::min(self.pos.file, other.pos.file))
+            || Queen::abs_diff(self.pos.rank, other.pos.rank)
+                == Queen::abs_diff(self.pos.file, other.pos.file)
+    }
+
+    fn abs_diff(x: u8, y: u8) -> u8 {
+        cmp::max(x, y) - cmp::min(x, y)
     }
 }
