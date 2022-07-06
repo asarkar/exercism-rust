@@ -18,7 +18,11 @@ To run a test `test_bits` in file `src/lib.rs`, under module `tests`, use the pa
 
 ## References
 
-* https://www.philipdaniels.com/tags/rust/
+* [Phil's Blog](https://www.philipdaniels.com/tags/rust/)
+* [Tom McGurl/YouTube](https://www.youtube.com/c/TomMcGurl/videos)
+* [Rust Programming Exercises/YouTube](https://www.youtube.com/playlist?list=PLb1VOxJqFzDdS-xV9OkKKPfXvtQ8y1Wzk)
+* [Tensor Programming/Youtube](https://www.youtube.com/c/TensorProgramming/search)
+* [CS Honors @ Illinois/YouTube](https://www.youtube.com/channel/UCRA18QWPzB7FYVyg0WFKC6g/search?query=rust)
 
 ## License
 
