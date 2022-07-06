@@ -4,4 +4,4 @@ name = "say"
 version = "1.2.0"
 
 [dependencies]
-lazy_static = "1.4.0"
+lazy_static = "1.4"

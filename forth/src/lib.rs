@@ -1,7 +1,11 @@
-use pest::iterators::Pair;
-use pest::{self, Parser};
-use std::collections::HashMap;
-use std::collections::VecDeque;
+mod cmd;
+mod defn;
+
+use cmd::Cmd;
+use defn::Dict;
+use pest::iterators::{Pair, Pairs};
+use pest::Parser;
+use std::any::{Any, TypeId};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "forth.pest"]
@@ -9,13 +13,6 @@ pub struct ForthParser;
 
 pub type Value = i32;
 pub type Result = std::result::Result<(), Error>;
-
-#[derive(Default)]
-// https://stackoverflow.com/a/27590535/839733
-pub struct Forth {
-    stack: Vec<Value>,
-    word_defn: HashMap<String, String>,
-}
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -25,187 +22,104 @@ pub enum Error {
     InvalidWord,
 }
 
-impl Forth {
-    pub fn new() -> Forth {
+#[derive(Default)]
+pub struct Forth<'a> {
+    cmd: Cmd,
+    dict: Dict<'a>,
+}
+
+// ### pest references ###
+// https://docs.rs/pest_derive/latest/pest_derive/
+// https://pest.rs/book/intro.html
+// Parser for Calculator: https://createlang.rs/01_calculator/calc_intro.html
+// Parsing with Pest: https://www.youtube.com/watch?v=r935AKecsk4
+// HTTP Request Parser using pest: https://protiumx.dev/blog/posts/an-http-request-parser-with-rust-and-pest.rs/
+
+// ### Parser references ###
+// Easy Forth: https://skilldrick.github.io/easyforth/
+// Writing a Simple Parser in Rust: https://adriann.github.io/rust_parser.html
+
+// ### General references ###
+// Common Rust Lifetime Misconceptions: https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md
+
+// The code is split into separate modules for better organization and abstraction.
+// Module 'cmd' handles execution of commands, like `1 2 +`, and module 'defn'
+// handles parsing and resolving word definitions, like `: foo 5 ;`.
+
+// How the OOM attack works: x="some long string", "y = x x", "z = y y", etc. keeps appending the
+// long string to every definition. If we resolve the definition eagerly, every definition is
+// stored in this way, not only the final string. If we keep doing it, the string will become
+// large enough to cause a crash.
+// My solution prevents this attack by resolving the definition at runtime.
+impl<'a> Forth<'a> {
+    pub fn new() -> Self {
         Default::default()
     }
 
     pub fn stack(&self) -> &[Value] {
-        &self.stack
+        self.cmd.stack()
     }
 
-    pub fn eval(&mut self, input: &str) -> Result {
-        println!("Evaluate: {}", input);
-        let pairs = ForthParser::parse(Rule::Line, input);
-        if pairs.is_err() {
-            eprintln!("Stack underflow");
-            return Err(Error::StackUnderflow);
+    pub fn eval(&mut self, input: &'a str) -> Result {
+        // println!("Process line: {}", input);
+        match ForthParser::parse(Rule::Line, input) {
+            Ok(line) => self.process_line(line),
+            e => panic!("Failed to parse line: {}, {:?}", input, e),
         }
-        let mut defn = false;
+    }
 
-        for p in pairs.unwrap().flatten() {
-            let res = match p.as_rule() {
-                Rule::WordDefn => {
-                    defn = true;
-                    self.define_word(p)
+    fn process_line(&mut self, pairs: Pairs<'a, Rule>) -> Result {
+        pairs
+            .flat_map(|p| p.into_inner())
+            .try_fold((), |acc, p| match p.as_rule() {
+                Rule::WordDefn => self.dict.new_word(p),
+                Rule::Cmd => self.run_cmd(p),
+                Rule::InvalidWord => {
+                    eprintln!("Invalid word: {}", p.as_str());
+                    Err(Error::InvalidWord)
                 }
-                Rule::Word if !defn => {
-                    let word = p.as_str();
-                    if let Some(d) = self.word_defn.get(&word.to_ascii_uppercase()).cloned() {
-                        println!("in dict {:?}", p);
-                        self.eval(&d)
-                    } else if let Some(rule) = ForthParser::parse(Rule::StackOp, word)
-                        .ok()
-                        .and_then(|pairs| pairs.peek().and_then(|pair| pair.into_inner().next()))
-                    {
-                        println!("{:?}", rule);
-                        self.stack_op(rule.as_rule())
-                    } else if let Some(rule) = ForthParser::parse(Rule::BinOp, word)
-                        .ok()
-                        .and_then(|pairs| pairs.peek().and_then(|pair| pair.into_inner().next()))
-                    {
-                        println!("{:?}", rule);
-                        self.binary_expr(rule.as_rule())
-                    } else {
-                        eprintln!("Unknown word: {}", word);
-                        Err(Error::UnknownWord)
+                _ => Ok(acc),
+            })
+    }
+
+    fn run_cmd(&mut self, pair: Pair<'a, Rule>) -> Result {
+        pair.into_inner()
+            .peek()
+            .map(|p| {
+                let built_in = !self.dict.is_word(&p);
+                match p.as_rule() {
+                    Rule::BuiltInCmd => self.cmd.run_built_in_cmd(p),
+                    Rule::Word => {
+                        // Since built-in commands can be redefined,
+                        // most tokens other than int come in as words.
+                        if built_in {
+                            self.run_built_in_cmd(&Dict::to_word(&p))
+                        } else {
+                            let defn = self.dict.resolve_defn(&p)?;
+                            // println!("Word: {}, definition: {:?}", p.as_str(), defn);
+                            defn.into_iter()
+                                .try_fold((), |_, d| self.run_built_in_cmd(&d))
+                        }
                     }
+                    _ => panic!("Unknown command: {}", p),
                 }
-                Rule::Int if !defn => {
-                    println!("{:?}", p);
-                    let i = p.as_str().parse::<Value>().unwrap();
-                    self.stack.push(i);
-                    Ok(())
+            })
+            .unwrap()
+    }
+
+    fn is_parse_error(a: &dyn Any) -> bool {
+        TypeId::of::<pest::error::Error<Rule>>() == a.type_id()
+    }
+
+    fn run_built_in_cmd(&mut self, word: &str) -> Result {
+        ForthParser::parse(Rule::BuiltInCmd, word)
+            .map_err(|e| {
+                if Forth::is_parse_error(&e) {
+                    Error::UnknownWord
+                } else {
+                    Error::StackUnderflow
                 }
-                Rule::BinOp if !defn => self.binary_expr(p.into_inner().next().unwrap().as_rule()),
-                Rule::StackOp if !defn => self.stack_op(p.into_inner().next().unwrap().as_rule()),
-                Rule::SEMICOLON => {
-                    defn = false;
-                    Ok(())
-                }
-                Rule::InvalidWord => Err(Error::InvalidWord),
-                _ => Ok(()),
-            };
-            res?
-        }
-        Ok(())
-    }
-
-    fn define_word(&mut self, pair: Pair<Rule>) -> Result {
-        let (words, defn): (Vec<(Rule, &str)>, Vec<(Rule, &str)>) = pair
-            .into_inner()
-            .flatten()
-            .filter(|x| [Rule::Word, Rule::Defn].contains(&x.as_rule()))
-            .map(|x| (x.as_rule(), x.as_str().trim()))
-            .partition(|x| x.0 == Rule::Word);
-
-        let mut buffer = VecDeque::new();
-        if let Some((_, d)) = defn.first() {
-            buffer.push_front(d.to_ascii_uppercase().trim().to_string());
-        }
-
-        for (_, word) in words.iter().skip(1).rev() {
-            let w = word.to_ascii_uppercase().trim().to_string();
-            if let Some(d) = self.word_defn.get(&w) {
-                println!("Push {}", d);
-                buffer.push_front(d.clone());
-                if !buffer.is_empty() {
-                    println!("Set {}={:?}", w, buffer);
-                    self.word_defn.insert(w, self.join(&mut buffer));
-                }
-            } else if ForthParser::parse(Rule::Cmd, &w).is_ok() {
-                println!("Push {}", w);
-                buffer.push_front(w);
-            } else if !buffer.is_empty() {
-                println!("Set {}={:?}", w, buffer);
-                self.word_defn.insert(w, self.join(&mut buffer));
-            } else {
-                eprintln!("Unknown word: {}", w);
-                return Err(Error::UnknownWord);
-            }
-        }
-        let w = words[0].1.to_ascii_uppercase().trim().to_string();
-
-        self.word_defn.insert(w, self.join(&mut buffer));
-
-        println!("word_defn={:?}", self.word_defn);
-
-        Ok(())
-    }
-
-    fn join(&self, buffer: &mut VecDeque<String>) -> String {
-        let s = buffer.iter().fold(String::new(), |mut s, x| {
-            s.push_str(x);
-            s.push(' ');
-            s
-        });
-        s.trim().to_string()
-    }
-
-    fn binary_expr(&mut self, rule: Rule) -> Result {
-        println!("Math on stack={:?}", self.stack);
-        println!("{:?}", rule);
-        if let Some((y, x)) = self.stack.pop().zip(self.stack.pop()) {
-            let result = match rule {
-                Rule::Add => x + y,
-                Rule::Sub => x - y,
-                Rule::Mul => x * y,
-                Rule::Div if y != 0 => x / y,
-                _ => return Err(Error::DivisionByZero),
-            };
-            self.stack.push(result);
-            Ok(())
-        } else {
-            Err(Error::StackUnderflow)
-        }
-    }
-
-    fn stack_op(&mut self, rule: Rule) -> Result {
-        match rule {
-            Rule::Dup => self.dup(),
-            Rule::Drop => self.drop(),
-            Rule::Swap => self.swap(),
-            _ => self.over(),
-        }
-    }
-
-    fn dup(&mut self) -> Result {
-        println!("DUP on stack={:?}", self.stack);
-        if let Some(last) = self.stack.last().cloned() {
-            self.stack.push(last);
-            Ok(())
-        } else {
-            Err(Error::StackUnderflow)
-        }
-    }
-
-    fn drop(&mut self) -> Result {
-        println!("DROP on stack={:?}", self.stack);
-        if self.stack.pop().is_some() {
-            Ok(())
-        } else {
-            Err(Error::StackUnderflow)
-        }
-    }
-
-    fn swap(&mut self) -> Result {
-        println!("SWAP on stack={:?}", self.stack);
-        if let Some((x, y)) = self.stack.pop().zip(self.stack.pop()) {
-            self.stack.push(x);
-            self.stack.push(y);
-            Ok(())
-        } else {
-            Err(Error::StackUnderflow)
-        }
-    }
-
-    fn over(&mut self) -> Result {
-        println!("OVER on stack={:?}", self.stack);
-        if self.stack.len() < 2 {
-            Err(Error::StackUnderflow)
-        } else {
-            self.stack.push(self.stack[self.stack.len() - 2]);
-            Ok(())
-        }
+            })
+            .and_then(|cmd| self.cmd.run_built_in_cmd(cmd.peek().unwrap()))
     }
 }

@@ -1,6 +1,3 @@
-// https://docs.rs/pest_derive/latest/pest_derive/
-// https://pest.rs/book/intro.html
-// https://skilldrick.github.io/easyforth/
 Int = @{ ASCII_DIGIT+ }
 Add = { "+" }
 Sub = { "-" }
@@ -14,17 +11,16 @@ Over = { ^"OVER" }
 StackOp = { Dup | Drop | Swap | Over }
 Rhs = _{ Int ~ BinOp }
 BinExpr = _{ Int ~ Rhs }
-CompoundExpr = _{ BinExpr ~ Rhs* }
-Cmd = _{ Int | BinOp | StackOp | CompoundExpr }
+CompoundExpr = _{ BinExpr ~ Rhs }
+BuiltInCmd = { Int | BinOp | StackOp | CompoundExpr }
 COLON = _{ ":" }
-SEMICOLON = { ";" }
+SEMICOLON = _{ ";" }
 WHITESPACE = _{ " " }
 HyphenatedWord = _{ ASCII_ALPHA+ ~ Sub ~ ASCII_ALPHA+ }
 Word = @{ HyphenatedWord | BinOp | ASCII_ALPHA+ }
-Defn = { (Rhs | Cmd)+ }
-WordDefn = { COLON ~ Word+ ~ Defn? ~ SEMICOLON }
+Cmd = { Word | BuiltInCmd }
+Defn = { Cmd+ }
+WordDefn = { COLON ~ Word ~ Defn ~ SEMICOLON }
 InvalidWord = { COLON ~ ANY* }
-// WordRef = { COLON ~ Word{2,} ~ SEMICOLON }
-// WordDefnOverride = { COLON ~ Word{2,} ~ Defn ~ SEMICOLON }
-
-Line = _{ SOI ~ (Word | WordDefn | Cmd | InvalidWord)+ ~ EOI }
+LineItem = { WordDefn | Cmd | InvalidWord }
+Line = _{ SOI ~ LineItem+ ~ EOI }

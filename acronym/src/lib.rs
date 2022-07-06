@@ -1,11 +1,12 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub fn abbreviate(phrase: &str) -> String {
-    lazy_static! {
-        static ref ALPHABETIC_RE: Regex = Regex::new(r"([A-Za-z']+)").unwrap();
-    }
+lazy_static! {
+    static ref ALPHABETIC_RE: Regex = Regex::new(r"([A-Za-z']+)").unwrap();
+    static ref UPPER_CASE_RE: Regex = Regex::new(r"([A-Z])").unwrap();
+}
 
+pub fn abbreviate(phrase: &str) -> String {
     // Split the phrase into words.
     ALPHABETIC_RE
         .captures_iter(phrase)
@@ -24,9 +25,6 @@ pub fn abbreviate(phrase: &str) -> String {
 // Extracts all uppercase letters ignoring consecutive ones.
 // "PNG" -> ["P"], "lower" -> [], "CamelCase" -> ['C', 'C']
 fn extract_upper_case(word: &str) -> Vec<char> {
-    lazy_static! {
-        static ref UPPER_CASE_RE: Regex = Regex::new(r"([A-Z])").unwrap();
-    }
     UPPER_CASE_RE
         .find_iter(word)
         .fold((-1, Vec::new()), |(prev_end, mut acc), x| {
