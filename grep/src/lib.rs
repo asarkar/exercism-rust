@@ -1,5 +1,6 @@
 use anyhow::Error;
 use fancy_regex::{self, Regex};
+use std::fmt::Write as _;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Lines};
 use std::path::Path;
@@ -105,10 +106,10 @@ fn find(file: &str, re: &Regex, flags: &Flags, file_name: bool) -> Result<Vec<St
             }
             let mut s = String::new();
             if file_name {
-                s.push_str(&format!("{}:", file));
+                let _ = write!(s, "{}:", file);
             }
             if flags.line_numbers {
-                s.push_str(&format!("{}:", i + 1));
+                let _ = write!(s, "{}:", i + 1);
             }
             s.push_str(&line.to_string());
             res.push(s);

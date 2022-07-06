@@ -3,6 +3,8 @@ use num_integer::Integer;
 use num_traits::Zero;
 use std::cmp::{Ordering, PartialOrd};
 use std::fmt;
+#[allow(unused_imports)]
+use std::fmt::Write as _;
 use std::ops::{Add, Mul, Neg, Sub};
 use std::str::FromStr;
 
@@ -169,7 +171,7 @@ mod tests {
             let sign = if s.starts_with('-') { "-" } else { "" };
             let mut x = format!("{}{}", sign, n);
             if let Some(d) = d {
-                x.push_str(&format!("/10^{}", d));
+                let _ = write!(x, "/10^{}", d);
             }
             x
         } else {

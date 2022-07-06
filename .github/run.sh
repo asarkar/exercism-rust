@@ -64,7 +64,7 @@ for m in "${manifests[@]}"; do
 			cargo clippy --manifest-path "$m" --fix --allow-dirty --allow-staged --no-deps
 		else
 			cargo fmt --manifest-path "$m" -- --check
-			cargo clippy --manifest-path "$m" -- -D warnings --no-deps
 		fi
+		cargo clippy --manifest-path "$m" -- -D warnings --no-deps
 	fi
 done

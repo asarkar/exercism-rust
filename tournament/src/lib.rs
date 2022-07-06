@@ -1,5 +1,6 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 #[derive(Default, Debug)]
 struct Score {
@@ -86,16 +87,18 @@ fn new_scores(result: &[&str]) -> Vec<Score> {
 
 fn formatted_scores(scores: HashMap<String, Score>) -> String {
     let mut output = String::new();
-    output.push_str(&format!(
+    let _ = write!(
+        output,
         "{: <30} |{: >3} | {: >2} | {: >2} | {: >2} | {: >2}",
         "Team", "MP", "W", "D", "L", "P"
-    ));
+    );
 
     let mut results: Vec<Score> = scores.into_iter().map(|(_, score)| score).collect();
     results.sort_by_key(|s| (Reverse(s.points()), s.team.clone()));
 
     for score in results {
-        output.push_str(&format!(
+        let _ = write!(
+            output,
             "\n{: <30} |{: >3} | {: >2} | {: >2} | {: >2} | {: >2}",
             score.team.to_string(),
             score.matches_played(),
@@ -103,7 +106,7 @@ fn formatted_scores(scores: HashMap<String, Score>) -> String {
             score.draws,
             score.losses,
             score.points()
-        ));
+        );
     }
     output
 }
