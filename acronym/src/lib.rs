@@ -1,41 +1,29 @@
-use lazy_static::lazy_static;
-use regex::Regex;
-
-lazy_static! {
-    static ref ALPHABETIC_RE: Regex = Regex::new(r"([A-Za-z']+)").unwrap();
-    static ref UPPER_CASE_RE: Regex = Regex::new(r"([A-Z])").unwrap();
-}
-
 pub fn abbreviate(phrase: &str) -> String {
-    // Split the phrase into words.
-    ALPHABETIC_RE
-        .captures_iter(phrase)
-        .flat_map(|w| {
-            let word = &w[1];
-            let letters = extract_upper_case(word);
-            if letters.is_empty() {
-                vec![first_ch(word)]
+    let s = phrase.as_bytes();
+
+    /*
+     * 1. If a character is the start of a word, take it.
+     *    Words are separated by whitespaces.
+     * 2. If a character is preceded by a hyphen, take it.
+     * 3. If a character is upper case and not preceded by
+     *    another upper case character, take it.
+     */
+    s.iter()
+        .enumerate()
+        .filter_map(|(i, b)| {
+            let c = *b as char;
+            let prev = if i == 0 {
+                char::default()
             } else {
-                letters
+                s.get(i - 1).cloned().unwrap() as char
+            };
+            let first =
+                c.is_ascii_alphabetic() && (i == 0 || prev.is_ascii_whitespace() || prev == '-');
+            if first || (c.is_ascii_uppercase() && !prev.is_ascii_uppercase()) {
+                Some(c.to_ascii_uppercase())
+            } else {
+                None
             }
         })
         .collect()
-}
-
-// Extracts all uppercase letters ignoring consecutive ones.
-// "PNG" -> ["P"], "lower" -> [], "CamelCase" -> ['C', 'C']
-fn extract_upper_case(word: &str) -> Vec<char> {
-    UPPER_CASE_RE
-        .find_iter(word)
-        .fold((-1, Vec::new()), |(prev_end, mut acc), x| {
-            if (x.start() as i32) != prev_end {
-                acc.push(first_ch(x.as_str()));
-            }
-            (x.end() as i32, acc)
-        })
-        .1
-}
-
-fn first_ch(word: &str) -> char {
-    word.chars().next().unwrap().to_ascii_uppercase()
 }
