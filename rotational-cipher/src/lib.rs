@@ -6,10 +6,9 @@ pub fn rotate(input: &str, key: i8) -> String {
         .chars()
         .map(|ch| {
             let x = (ch as u8) + k;
-            if ch.is_ascii_uppercase() && x > b'Z' {
-                (b'A' + x - b'Z' - 1) as char
-            } else if ch.is_ascii_lowercase() && x > b'z' {
-                (b'a' + x - b'z' - 1) as char
+            let n = NUM_LETTERS as u8;
+            if (ch.is_ascii_uppercase() && x > b'Z') || (ch.is_ascii_lowercase() && x > b'z') {
+                (x - n) as char
             } else if ch.is_ascii_alphabetic() {
                 x as char
             } else {
