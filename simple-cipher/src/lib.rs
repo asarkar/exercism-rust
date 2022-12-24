@@ -11,7 +11,7 @@ pub fn decode(key: &str, s: &str) -> Option<String> {
 }
 
 pub fn encode_random(s: &str) -> (String, String) {
-    let ascii_lowercase: Vec<char> = (b'a'..b'z').map(|i| i as char).collect();
+    let ascii_lowercase: Vec<char> = (b'a'..=b'z').map(|i| i as char).collect();
     let key: String = rand::thread_rng()
         .sample_iter(Slice::new(&ascii_lowercase[..]).unwrap())
         .take(101)
