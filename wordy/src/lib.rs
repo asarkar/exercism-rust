@@ -22,7 +22,7 @@ pub fn answer(command: &str) -> Option<i32> {
 
     for mat in number_re.find_iter(command) {
         if let Some(prev_mat) = prev_match {
-            let phrase = (&command[prev_mat.end()..mat.start()]).trim();
+            let phrase = (command[prev_mat.end()..mat.start()]).trim();
             if let Some(op) = phrases.get(phrase) {
                 let num = mat.as_str().parse::<i32>().unwrap();
                 result.replace(op(result.unwrap(), num));
