@@ -49,8 +49,8 @@ fi
 green='\033[1;32m'
 no_color='\033[0m'
 for m in "${manifests[@]}"; do
-	name="$(dirname "$(readlink -f "$m")")"
-	name="$(basename "$name")"
+	name=$(dirname $(readlink -f "$m"))
+	name=$(basename "$name")
 
 	printf "Project dir: %b%s%b\n" "$green" "$name" "$no_color"
 
