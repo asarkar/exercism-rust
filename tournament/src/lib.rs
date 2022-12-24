@@ -93,7 +93,7 @@ fn formatted_scores(scores: HashMap<String, Score>) -> String {
         "Team", "MP", "W", "D", "L", "P"
     );
 
-    let mut results: Vec<Score> = scores.into_iter().map(|(_, score)| score).collect();
+    let mut results: Vec<Score> = scores.into_values().collect();
     results.sort_by_key(|s| (Reverse(s.points()), s.team.clone()));
 
     for score in results {
