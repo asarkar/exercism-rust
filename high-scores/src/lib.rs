@@ -21,7 +21,7 @@ impl<'a> HighScores<'a> {
     }
 
     pub fn personal_best(&self) -> Option<u32> {
-        self.personal_top_three().get(0).cloned()
+        self.personal_top_three().first().cloned()
     }
 
     pub fn personal_top_three(&self) -> Vec<u32> {
