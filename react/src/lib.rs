@@ -16,6 +16,7 @@ pub enum RemoveCallbackError {
     NonexistentCallback,
 }
 struct ComputeCell<'a, T> {
+    #[allow(clippy::type_complexity)]
     func: Box<dyn 'a + Fn(&[T]) -> T>,
     dependencies: Vec<CellId>,
     callbacks: HashMap<CallbackId, Box<dyn 'a + FnMut(T)>>,
