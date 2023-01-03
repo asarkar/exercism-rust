@@ -30,9 +30,14 @@ impl PokerHand {
         let rank_grp_len: Vec<u8> = r.iter().map(|(n, _)| *n).collect();
         let r: Vec<u8> = r.iter().map(|(_, k)| *k).collect();
         // Collect all the unique suites
-        let suites: HashSet<u8> = ranks.values().flat_map(|v| v.iter()).cloned().collect();
+        let num_suites = ranks
+            .values()
+            .flat_map(|v| v.iter())
+            .cloned()
+            .collect::<HashSet<u8>>()
+            .len();
 
-        match (suites.len(), r.len()) {
+        match (num_suites, r.len()) {
             // Five different ranks
             (x, 5) => {
                 let five_high = r == [14, 5, 4, 3, 2];
@@ -66,7 +71,7 @@ impl PokerHand {
         }
     }
 
-    // Return a set of suites and a map of rank -> suites
+    // Return a map of rank -> suites
     fn ranks(s: &str) -> HashMap<u8, HashSet<u8>> {
         s.split_ascii_whitespace()
             .map(|w| {
@@ -81,9 +86,9 @@ impl PokerHand {
                     // 2..=10
                     _ => rank.parse::<u8>().unwrap(),
                 };
-                (suite, rank)
+                (rank, suite)
             })
-            .fold(HashMap::new(), |mut ranks, (suite, rank)| {
+            .fold(HashMap::new(), |mut ranks, (rank, suite)| {
                 ranks.entry(rank).or_insert_with(HashSet::new).insert(suite);
                 ranks
             })
