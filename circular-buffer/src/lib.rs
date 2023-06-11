@@ -74,7 +74,6 @@ impl<T: Default + Clone> CircularBuffer<T> {
         if self.is_full() {
             self.data[self.read_idx] = element;
             self.read_idx = (self.read_idx + 1) % self.capacity;
-            self.size += 1;
         } else {
             _ = self.write(element);
         }
