@@ -7,12 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
+      - run: rustup update stable && rustup default stable
 
       - name: Test
         run: .github/run.sh --no-lint
