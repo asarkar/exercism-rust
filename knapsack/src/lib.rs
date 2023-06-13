@@ -9,10 +9,7 @@ pub fn maximum_value(max_weight: u32, items: &[Item]) -> u32 {
     /* dp[i][j] is the maximum value obtainable by choosing
      * the first i items not exceeding total weight j.
      */
-    let mut dp: Vec<Vec<u32>> = Vec::with_capacity(items.len());
-    for _ in 0..=items.len() {
-        dp.push(vec![0; (1 + max_weight) as usize]);
-    }
+    let mut dp: Vec<Vec<u32>> = vec![vec![0; (1 + max_weight) as usize]; items.len() + 1];
 
     for i in 1..=items.len() {
         for j in 1..=max_weight as usize {
