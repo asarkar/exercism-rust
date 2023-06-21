@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 /// `Palindrome` is a newtype which only exists when the contained value is a palindrome number in base ten.
 ///
 /// A struct with a single field which is used to constrain behavior like this is called a "newtype", and its use is
@@ -23,102 +25,87 @@ impl Palindrome {
     }
 }
 
-/*
- * Let palindrome = first * second
- *  = (10^n - x) * (10^n - y), where x and y are positive integers
- *  = 10^(2n) - 10^n * (x + y) + xy
- *  = 10^n * (10^n — (x + y)) + xy
- *  = 10^n * left + right, where left = 10^n — (x + y) and right = xy ---(i)
- *
- * Define z = x + y ---(ii)
- * left = 10^n — z
- * right = x(z-x) using (i) and (ii)
- *  = -x^2 + zx
- * Therefore, x^2 - zx + right = 0 ---(iii)
- *
- * Now, two n digits numbers could generate a 2n - 1 or 2n digits palindrome.
- * For example, palindrome number 'abcddcba' for n=4 can be written as:
- *  10^4*abcd + dcba
- *  = 10^4*left + right.
- *
- * Thus, we can substitute for right the reverse of left in the equation (iii).
- *
- * From (i) and (ii), left = 10^n — z > 0. Since we are given min and max,
- * min <= 10^n — z <= max
- *  => 10^n - max <= z <= 10^n - min.
- */
 pub fn palindrome_products(min: u64, max: u64) -> Option<(Palindrome, Palindrome)> {
-    if min > max {
-        return None;
-    }
-    let smallest = min_palindrome_pdt(min, max).and_then(Palindrome::new);
-    let largest = max_palindrome_pdt(min, max).and_then(Palindrome::new);
+    let smallest = palindrome(min, max, 1).and_then(Palindrome::new);
+    let largest = palindrome(max, min, -1).and_then(Palindrome::new);
 
     smallest.zip(largest)
 }
 
 /*
- * Recall that for a quadratic equation ax^2 + bx + c = 0,
- * the two solutions are given by (-b ± √(b^2 - 4ac)) / (2a),
- * which has at least one real solution if the discriminant (b^2 - 4ac) >= 0.
- *
- * Solve x^2 - zx + right = 0.
- * a = 1, b = -z, c = right.
- * Discriminant d = (b^2 - 4ac) = z^2 - 4 * right.
- * Roots: (-b ± √d) / 2a = (z ± √d) / 2
+ * Searches for a palindrome with factors in the given range.
+ * Whether the palindrome is the maximum or minimum depends
+ * on the given step.
  */
-fn min_palindrome_pdt(min: u64, max: u64) -> Option<u64> {
-    let n = format!("{:?}", max).len();
-    if n == 1 {
-        return Some(1);
+fn palindrome(start: u64, stop: u64, step: i64) -> Option<u64> {
+    if signum((stop as i64) - (start as i64)) == -step {
+        return None;
     }
+    let mut palindrome: Option<u64> = None;
+    let mut left = start;
+    let op = if step < 0 {
+        PartialOrd::ge
+    } else {
+        PartialOrd::le
+    };
 
-    let hi = u64::pow(10, n as u32);
-    let r = min..=max;
+    while op(&left, &stop) {
+        let mut right = start;
+        /*
+         * This variable determines whether the last iterations of the inner
+         * loop (right) produced a product that satisfied the given condition
+         * when compared with the palindrome found so far. Since the ranges are
+         * monotonically increasing/decreasing, if no such product was found
+         * in the last iteration, it won't be found in any future iterations
+         * either, so, we can stop.
+         */
+        let mut should_continue = false;
 
-    for z in ((hi - max)..=(hi - min)).rev() {
-        let left: u64 = hi - z;
-        let right: u64 = reverse(left);
+        // One factor is smaller or equal to the other.
+        while op(&right, &left) {
+            let pdt = left * right;
+            if palindrome.filter(|p| !op(&pdt, p)).is_none() {
+                should_continue = true;
+                let x = pdt.to_string();
+                if x == x.chars().rev().collect::<String>() {
+                    _ = palindrome.insert(pdt);
+                }
+            }
 
-        if !r.contains(&left) || !r.contains(&right) {
-            continue;
-        }
-
-        return Some(u64::pow(10, (n - 1) as u32) * left + right);
-    }
-    None
-}
-
-fn max_palindrome_pdt(min: u64, max: u64) -> Option<u64> {
-    let n = format!("{:?}", max).len();
-    if n == 1 {
-        return Some(9);
-    }
-
-    let hi = u64::pow(10, n as u32);
-
-    for z in (hi - max)..=(hi - min) {
-        let left: u64 = hi - z;
-        let right: u64 = reverse(left);
-
-        let d = (z * z) as f32 - (4 * right) as f32;
-        if d >= 0.0 {
-            let x = f32::sqrt(d);
-            let root1 = ((z as f32) + x) / 2f32;
-            let root2 = ((z as f32) - x) / 2f32;
-            if root1.fract() == 0.0 || root2.fract() == 0.0 {
-                return Some(hi * left + right);
+            if step < 0 {
+                right -= 1;
+            } else {
+                right += 1;
             }
         }
+        if !should_continue {
+            break;
+        }
+        if step < 0 {
+            left -= 1;
+        } else {
+            left += 1;
+        }
     }
-    None
+    palindrome
 }
 
-fn reverse(i: u64) -> u64 {
-    format!("{:?}", i)
-        .chars()
-        .rev()
-        .collect::<String>()
-        .parse::<u64>()
-        .unwrap()
+fn signum(n: i64) -> i64 {
+    match n.cmp(&0) {
+        Ordering::Greater => 1,
+        Ordering::Less => -1,
+        Ordering::Equal => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_smallest_product_does_not_use_the_smallest_factor() {
+        let (min, max) = palindrome_products(3215, 4000).unwrap();
+        assert_eq!(10988901, min.0);
+        assert_eq!(15600651, max.0);
+    }
 }
