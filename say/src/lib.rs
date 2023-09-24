@@ -65,7 +65,7 @@ fn encode_n(n: u64) -> String {
     // Example: For 120, this will find 100.
     if let Some((i, s)) = NUM_ZEROS.range(..=n).next_back() {
         let (left, right) = (n / i, n % i);
-        vec![encode_n(left), s.to_string(), encode_n(right)]
+        [encode_n(left), s.to_string(), encode_n(right)]
             .join(" ")
             .trim()
             .to_string()

@@ -1,9 +1,9 @@
-use enum_iterator::IntoEnumIterator;
+use enum_iterator::{all, Sequence};
 use int_enum::IntEnum;
 use std::fmt::{self, Debug};
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, IntEnum, IntoEnumIterator, PartialEq)]
+#[derive(Clone, Copy, Debug, IntEnum, Sequence, PartialEq)]
 pub enum ResistorColor {
     Black = 0,
     Blue = 6,
@@ -28,17 +28,14 @@ pub fn color_to_value(_color: ResistorColor) -> usize {
 }
 
 pub fn value_to_color_string(value: usize) -> String {
-    ResistorColor::into_enum_iter()
+    all::<ResistorColor>()
         .find(|c| (c.int_value() as usize) == value)
         .map(|c| c.to_string())
         .unwrap_or_else(|| "value out of range".to_string())
 }
 
 pub fn colors() -> Vec<ResistorColor> {
-    let mut colors: Vec<ResistorColor> = Vec::new();
-    for c in ResistorColor::into_enum_iter() {
-        colors.push(c);
-    }
+    let mut colors = all::<ResistorColor>().collect::<Vec<_>>();
     colors.sort_by_key(|x| x.int_value());
     colors
 }

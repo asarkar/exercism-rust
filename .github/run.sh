@@ -38,6 +38,10 @@ while (( $# > 0 )); do
    esac
 done
 
+bin_dir=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+	bin_dir="$HOME/.cargo/bin/"
+fi
 
 manifests=()
 if [[ -z "$1" ]]; then
@@ -55,16 +59,16 @@ for m in "${manifests[@]}"; do
 	printf "Project dir: %b%s%b\n" "$green" "$name" "$no_color"
 
 	if (( no_test == 0 )); then
-		cargo test --all-features --manifest-path "$m" -- --include-ignored --nocapture
+		"$bin_dir"cargo test --all-features --manifest-path "$m" -- --include-ignored --nocapture
 	fi
 
 	if (( no_lint == 0 )); then
 		if (( no_fix == 0 )); then
-			cargo fmt --manifest-path "$m" -- -l
-			cargo clippy --manifest-path "$m" --fix --allow-dirty --allow-staged --no-deps
+			"$bin_dir"cargo fmt --manifest-path "$m" -- -l
+			"$bin_dir"cargo clippy --manifest-path "$m" --fix --allow-dirty --allow-staged --no-deps
 		else
-			cargo fmt --manifest-path "$m" -- --check
+			"$bin_dir"cargo fmt --manifest-path "$m" -- --check
 		fi
-		cargo clippy --manifest-path "$m" -- -D warnings --no-deps
+		"$bin_dir"cargo clippy --manifest-path "$m" -- -D warnings --no-deps
 	fi
 done

@@ -1,7 +1,7 @@
 mod bitset;
 
 use bitset::BitSet;
-use enum_iterator::IntoEnumIterator;
+use enum_iterator::{all, Sequence};
 use int_enum::IntEnum;
 use std::collections::HashMap;
 
@@ -10,7 +10,7 @@ pub struct Allergies {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, IntEnum, IntoEnumIterator, PartialEq)]
+#[derive(Clone, Copy, Debug, IntEnum, Sequence, PartialEq)]
 pub enum Allergen {
     Eggs = 1,
     Peanuts = 2,
@@ -24,7 +24,7 @@ pub enum Allergen {
 
 impl Allergies {
     pub fn new(score: u32) -> Self {
-        let nums: Vec<u8> = Allergen::into_enum_iter().map(|a| a.int_value()).collect();
+        let nums: Vec<u8> = all::<Allergen>().map(|a| a.int_value()).collect();
         let bits = subset_sum(
             &nums[..],
             0,
@@ -46,7 +46,7 @@ impl Allergies {
     }
 
     pub fn allergies(&self) -> Vec<Allergen> {
-        Allergen::into_enum_iter()
+        all::<Allergen>()
             .enumerate()
             .filter(|&(i, _)| self.allergies.is_set(i))
             .map(|(_, a)| a)
@@ -66,7 +66,7 @@ fn subset_sum(
     if remaining == 0 {
         return Some(bits.clone());
     }
-    if bits.all_set() || i >= nums.len() {
+    if i >= nums.len() || bits.is_set(i) {
         return None;
     }
     if let Some(&b) = memo.get(&(i, remaining)) {
